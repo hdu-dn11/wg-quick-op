@@ -44,6 +44,10 @@ func Init() {
 			log.Error().Err(err).Str("addr", str).Msgf("cannot parse addr from ROAFinder config")
 			continue
 		}
+		if conf.EnhancedDNS.DirectResolver.IPv4Only && addrPort.Addr().Is6() {
+			log.Debug().Str("addr", str).Msg("skip IPv6 resolver in ipv4_only mode")
+			continue
+		}
 		publicDNS = append(publicDNS, addrPort)
 	}
 
@@ -57,6 +61,10 @@ func Init() {
 				addrPort, err := netip.ParseAddrPort(net.JoinHostPort(str, "53"))
 				if err != nil {
 					log.Err(err).Str("addr", str).Msg("cannot parse addr from /etc/resolv.conf")
+					continue
+				}
+				if conf.EnhancedDNS.DirectResolver.IPv4Only && addrPort.Addr().Is6() {
+					log.Debug().Str("addr", str).Msg("skip IPv6 resolver in ipv4_only mode")
 					continue
 				}
 				publicDNS = append(publicDNS, addrPort)
@@ -115,7 +123,12 @@ func directDNS(domain string) (netip.Addr, error) {
 		return netip.Addr{}, err
 	}
 
-	for ns := range nsAddrIter(domain) {
+	nsIter := nsAddrIter(domain)
+	if nsIter == nil {
+		return netip.Addr{}, errors.New("no nameserver found")
+	}
+
+	for ns := range nsIter {
 		for addr := range queryAAndAAAAAddrIter(domain, []netip.AddrPort{netip.AddrPortFrom(ns, 53)}) {
 			return addr, nil
 		}
@@ -174,6 +187,7 @@ DomainTrim:
 
 	if domain == "" {
 		log.Error().Msg("cannot find NS server")
+		return nil
 	}
 
 	rand.Shuffle(len(nsRec.Answer), func(i, j int) {
@@ -204,6 +218,9 @@ DomainTrim:
 						return
 					}
 				case *dns.AAAA:
+					if conf.EnhancedDNS.DirectResolver.IPv4Only {
+						continue
+					}
 					addr, ok := netip.AddrFromSlice(rr.AAAA)
 					if !ok {
 						log.Warn().Str("rr", rr.String()).Msgf("convert dns response to netip")

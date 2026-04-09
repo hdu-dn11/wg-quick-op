@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dn-11/wg-quick-op/conf"
 	"github.com/dn-11/wg-quick-op/utils"
 	"github.com/miekg/dns"
 	"github.com/rs/zerolog/log"
@@ -76,18 +77,18 @@ func queryAAndAAAAAddrIter(domain string, dnsList []netip.AddrPort) func(yield f
 			}
 			resultChan <- rec
 		})
-
-		wg.Go(func() {
-			rec, err := queryWithRetryWithList(ctx, domain, dns.TypeAAAA, dnsList)
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					log.Err(err).Msgf("DNS query failed")
+		if !conf.EnhancedDNS.DirectResolver.IPv4Only {
+			wg.Go(func() {
+				rec, err := queryWithRetryWithList(ctx, domain, dns.TypeAAAA, dnsList)
+				if err != nil {
+					if !errors.Is(err, context.Canceled) {
+						log.Err(err).Msgf("DNS query failed")
+					}
+					return
 				}
-				return
-			}
-			resultChan <- rec
-		})
-
+				resultChan <- rec
+			})
+		}
 		go func() {
 			wg.Wait()
 			close(resultChan)

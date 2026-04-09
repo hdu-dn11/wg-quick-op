@@ -14,6 +14,8 @@ skip_ifaces = []
 [enhanced_dns.direct_resolver]
 # resolve dns from direct NS server
 enabled = true
+# only query A records and ignore IPv6 DNS resolvers/AAAA records
+ipv4_only = false
 # fetch ROA, config for direct_resolver
 roa_finder = [ "223.5.5.5", "119.29.29.29" ]
 

@@ -31,6 +31,7 @@ var EnhancedDNS struct {
 	DirectResolver struct {
 		Enabled   bool
 		ROAFinder []string
+		IPv4Only  bool
 	}
 }
 
@@ -65,6 +66,7 @@ func Init(file string) {
 	// 先设默认值
 	viper.SetDefault("ddns.interval", 60)
 	viper.SetDefault("ddns.handshake_max", 150)
+	viper.SetDefault("enhanced_dns.direct_resolver.ipv4_only", false)
 	viper.SetDefault("wireguard.MTU", 1420)
 	viper.SetDefault("wireguard.random_port", false)
 	viper.SetDefault("log.level", "info")
@@ -94,6 +96,7 @@ func update() {
 
 	EnhancedDNS.DirectResolver.Enabled = viper.GetBool("enhanced_dns.direct_resolver.enabled")
 	EnhancedDNS.DirectResolver.ROAFinder = viper.GetStringSlice("enhanced_dns.direct_resolver.roa_finder")
+	EnhancedDNS.DirectResolver.IPv4Only = viper.GetBool("enhanced_dns.direct_resolver.ipv4_only")
 
 	// 读取日志等级
 	lvlStr := viper.GetString("log.level")
