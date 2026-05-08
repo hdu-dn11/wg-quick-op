@@ -34,7 +34,7 @@ For additional feature, you may follow the steps below:
 
 This project provides an optional `update` command for convenience.
 
-When executing `wg-quick-op update`, the tool may connect to the network to check for and download a newer release, and replace the local executable file. By default, the update process may attempt to fetch releases from a person-maintained mirror (maintainer: GitHub ID `macarons-s`, community ID `Macarons`, ASN `AS4211110722`), and fall back to the official GitHub Releases if the mirror is unavailable.
+When executing `wg-quick-op update`, the tool may connect to the network to check for and download a newer release, and replace the local executable file. By default, the update process may attempt to fetch releases from a person-maintained mirror (maintainer: GitHub ID `macarons-me`, community ID `Macarons`, ASN `AS4211110722`), and fall back to the official GitHub Releases if the mirror is unavailable.
 
 Users can explicitly control the update source:
 
@@ -43,7 +43,7 @@ Users can explicitly control the update source:
   (https://api.github.com/repos/dn-11/wg-quick-op/releases)
 - `--source mirror`  
   Only use the mirror site maintained by the update function contributor.
-  (https://mirror.macaronss.top/github/dn-11/wg-quick-op/releases)
+  (https://mirror.macarons.tech/github/dn-11/wg-quick-op/releases)
 - `--source auto` (default)  
   Try the mirror first, then fall back to GitHub.
 

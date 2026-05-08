@@ -33,7 +33,7 @@ const (
 
 var (
 	updateSourceFlag string = string(sourceAuto)
-	mirrorBase              = "https://mirror.macaronss.top/github/dn-11/wg-quick-op/releases"
+	mirrorBase              = "https://mirror.macarons.tech/github/dn-11/wg-quick-op/releases"
 )
 
 type ghRelease struct {
@@ -193,7 +193,7 @@ func init() {
 		string(sourceAuto),
 		`Update source:
   auto    : mirror -> github
-  mirror  : https://mirror.macaronss.top/github/dn-11/wg-quick-op/releases
+  mirror  : https://mirror.macarons.tech/github/dn-11/wg-quick-op/releases
   github  : https://api.github.com/repos/dn-11/wg-quick-op/releases`,
 	)
 	updateCmd.Flags().BoolVar(&noUpdateSyncService, "no-sync-service", false, "Do not sync service scripts (systemd unit / OpenWrt init.d) after updating")
