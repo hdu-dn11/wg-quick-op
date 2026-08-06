@@ -16,6 +16,8 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+var linkSetMTU = netlink.LinkSetMTU
+
 // Up sets and configures the wg interface. Mostly equivalent to `wg-quick up iface`
 func Up(cfg *Config, iface string, logger zerolog.Logger) error {
 	_, err := netlink.LinkByName(iface)
@@ -144,6 +146,16 @@ func Sync(cfg *Config, iface string, logger zerolog.Logger) error {
 		logger.Err(err).Msg("cannot sync wireguard link")
 		return err
 	}
+	// Userspace implementations may apply their default MTU while finishing
+	// initialization, after the link first becomes visible.
+	link, err = netlink.LinkByName(iface)
+	if err != nil {
+		logger.Err(err).Msg("cannot refresh link")
+		return err
+	}
+	if err := SyncLinkMTU(cfg, link, logger); err != nil {
+		return err
+	}
 	logger.Info().Msg("synced link")
 
 	if err := SyncAddress(cfg, link, logger); err != nil {
@@ -218,12 +230,32 @@ func SyncLink(cfg *Config, iface string, logger zerolog.Logger) (netlink.Link, e
 			return nil, err
 		}
 	}
+	if err := SyncLinkMTU(cfg, link, logger); err != nil {
+		return nil, err
+	}
 	if err := netlink.LinkSetUp(link); err != nil {
 		logger.Err(err).Msg("cannot set link up")
 		return nil, err
 	}
 	logger.Info().Msg("set device up")
 	return link, nil
+}
+
+func SyncLinkMTU(cfg *Config, link netlink.Link, logger zerolog.Logger) error {
+	if cfg.MTU <= 0 {
+		return nil
+	}
+	if link.Attrs().MTU == cfg.MTU {
+		logger.Debug().Int("mtu", cfg.MTU).Msg("device mtu already set")
+		return nil
+	}
+	if err := linkSetMTU(link, cfg.MTU); err != nil {
+		logger.Err(err).Int("mtu", cfg.MTU).Msg("cannot set device mtu")
+		return err
+	}
+	link.Attrs().MTU = cfg.MTU
+	logger.Info().Int("mtu", cfg.MTU).Msg("set device mtu")
+	return nil
 }
 
 // SyncAddress adds/deletes all lind assigned IPV4 addressed as specified in the config

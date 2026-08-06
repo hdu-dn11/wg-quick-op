@@ -35,6 +35,8 @@ type Config struct {
 
 	// Table — Controls the routing table to which routes are added.
 	Table *int
+	// TableSet tracks whether Table was explicitly configured.
+	TableSet bool
 
 	// PreUp, PostUp, PreDown, PostDown — script snippets which will be executed by bash(1) before/after setting up/tearing down the interface, most commonly used to configure custom DNS options or firewall rules. The special string ‘%i’ is expanded to INTERFACE. Each one may be specified multiple times, in which case the commands are executed in order.
 	PreUp    []string
@@ -53,6 +55,9 @@ type Config struct {
 
 	// WireGuard-go binary path, left empty for kernel WireGuard
 	WgBin string
+
+	// MTUSet tracks whether MTU was explicitly configured.
+	MTUSet bool
 }
 
 type ParseMode int
@@ -88,9 +93,28 @@ func toSeconds(duration time.Duration) int {
 	return int(duration / time.Second)
 }
 
+func tableString(table *int) string {
+	if table == nil {
+		return "off"
+	}
+	return strconv.Itoa(*table)
+}
+
+func fwmarkString(mark *int) string {
+	if mark == nil {
+		return ""
+	}
+	if *mark == 0 {
+		return "off"
+	}
+	return strconv.Itoa(*mark)
+}
+
 var funcMap = template.FuncMap(map[string]interface{}{
-	"wgKey":     serializeKey,
-	"toSeconds": toSeconds,
+	"wgKey":        serializeKey,
+	"toSeconds":    toSeconds,
+	"tableString":  tableString,
+	"fwmarkString": fwmarkString,
 })
 
 var cfgTemplate = template.Must(
@@ -116,12 +140,14 @@ DNS = {{ . }}
 {{- end }}
 PrivateKey = {{ .PrivateKey | wgKey }}
 {{- if .ListenPort }}{{ "\n" }}ListenPort = {{ .ListenPort }}{{ end }}
-{{- if .MTU }}{{ "\n" }}MTU = {{ .MTU }}{{ end }}
-{{- if .Table }}{{ "\n" }}Table = {{ .Table }}{{ end }}
-{{- if .PreUp }}{{ "\n" }}PreUp = {{ .PreUp }}{{ end }}
-{{- if .PostUp }}{{ "\n" }}PostUp = {{ .PostUp }}{{ end }}
-{{- if .PreDown }}{{ "\n" }}PreDown = {{ .PreDown }}{{ end }}
-{{- if .PostDown }}{{ "\n" }}PostDown = {{ .PostDown }}{{ end }}
+{{- if .FirewallMark }}{{ "\n" }}FwMark = {{ .FirewallMark | fwmarkString }}{{ end }}
+{{- if .MTUSet }}{{ "\n" }}MTU = {{ .MTU }}{{ end }}
+{{- if .TableSet }}{{ "\n" }}Table = {{ .Table | tableString }}{{ end }}
+{{- if .WgBin }}{{ "\n" }}WgBin = {{ .WgBin }}{{ end }}
+{{- range .PreUp }}{{ "\n" }}PreUp = {{ . }}{{ end }}
+{{- range .PostUp }}{{ "\n" }}PostUp = {{ . }}{{ end }}
+{{- range .PreDown }}{{ "\n" }}PreDown = {{ . }}{{ end }}
+{{- range .PostDown }}{{ "\n" }}PostDown = {{ . }}{{ end }}
 {{- range .Peers }}
 {{- "\n" }}
 [Peer]
@@ -381,7 +407,9 @@ func parseInterfaceLine(cfg *Config, lhs string, rhs string) error {
 			return err
 		}
 		cfg.MTU = int(mtu)
+		cfg.MTUSet = true
 	case "Table":
+		cfg.TableSet = true
 		if strings.ToLower(rhs) == "off" {
 			cfg.Table = nil
 			return nil
@@ -407,6 +435,10 @@ func parseInterfaceLine(cfg *Config, lhs string, rhs string) error {
 		cfg.PreDown = append(cfg.PreDown, rhs)
 	case "PostDown":
 		cfg.PostDown = append(cfg.PostDown, rhs)
+	case "SaveConfig":
+		if _, err := strconv.ParseBool(rhs); err != nil {
+			return err
+		}
 	case "PrivateKey":
 		key, err := ParseKey(rhs)
 		if err != nil {
@@ -417,7 +449,8 @@ func parseInterfaceLine(cfg *Config, lhs string, rhs string) error {
 		cfg.WgBin = rhs
 	case "FwMark":
 		if strings.ToLower(rhs) == "off" {
-			cfg.FirewallMark = nil
+			mark := 0
+			cfg.FirewallMark = &mark
 			return nil
 		}
 		mark64, err := strconv.ParseInt(rhs, 0, 64)
